@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM"],
+    "outDir": "dist",
+    "rootDir": "src/demo",
+    "strict": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "baseUrl": ".",
+    "paths": {
+      "@wasm-gaming/smbros-wasm": ["./dist/smbros/smbros.sdk.d.ts"],
+      "@wasm-gaming/smbros-wasm/rom": ["./dist/smbros/smbros.rom.d.ts"]
+    }
+  },
+  "include": ["src/demo/**/*.ts"]
+}

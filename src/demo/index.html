@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+  <title>Super Mario Bros. Remastered — WebAssembly SDK demo</title>
+  <link rel="stylesheet" href="./demo/demo.css" />
+  <link rel="stylesheet" href="./theme.nes.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "@wasm-gaming/smbros-wasm": "./smbros/smbros.sdk.js",
+        "@wasm-gaming/smbros-wasm/rom": "./smbros/smbros.rom.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header class="console-bar">
+    <span class="wordmark">SUPER MARIO BROS.</span>
+    <span class="badge">REMASTERED</span>
+    <span class="rom-status" role="status"></span>
+    <span class="runtime-tag">runtime <b id="runtime">…</b></span>
+  </header>
+
+  <main></main>
+
+  <!-- Publishes window.SMBROS for the wiring below. Module scripts run in
+       document order, so this one has finished before the inline module. -->
+  <script type="module" src="./demo.js"></script>
+
+  <script type="module">
+    import demo from './demo/demo.js'
+
+    const { sdk, manifest, checkRom } = window.SMBROS
+
+    const statusEl = document.querySelector('.console-bar .rom-status')
+    const setStatus = (text) => { statusEl.textContent = text }
+
+    // The template replaces the launcher with the runtime container *before*
+    // it emits `launch`, so a rejected ROM would otherwise leave a blank
+    // stage. Draw the reason where the game would have been.
+    const showOnStage = (stageEl, reason) => {
+      stageEl.replaceChildren(
+        Object.assign(document.createElement('p'), {
+          className: 'stage-message',
+          textContent: reason,
+        }),
+      )
+    }
+
+    demo
+      .init({
+        manifest,
+        messages: {
+          title: 'Super Mario Bros. Remastered',
+          dropRomPrompt: 'Drop your Super Mario Bros. (NES) ROM',
+          romAssetHint: 'no Nintendo assets ship with the game',
+          launchButton: 'Start',
+          statusSelectRom: 'Ready — supply an original Super Mario Bros. (NES) ROM.',
+        },
+        bios: false,
+        // The game has its own pause menu on Escape, and every knob this SDK
+        // exposes is read once at boot. A second Escape-driven settings overlay
+        // would fight the game for the key and change nothing.
+        escMenu: { enabled: false },
+      })
+      // Run the game's own acceptance check the moment a file is picked, while
+      // the launcher is still on screen and nothing has been downloaded yet.
+      .on('rom:save', async ({ file }) => {
+        if (!file) return
+        const check = await checkRom(await file.arrayBuffer())
+        setStatus(check.ok ? '' : check.reason)
+      })
+      .on('launch', async (e) => {
+        const rom = await demo.loadToMEMFS('rom')
+
+        const check = await checkRom(rom)
+        if (!check.ok) {
+          setStatus(check.reason)
+          showOnStage(e.attachTo, check.reason)
+          throw new Error(check.reason)
+        }
+        setStatus('')
+
+        console.log('[demo] ROM accepted:', e.fileName, `(${check.fingerprint})`)
+
+        const instance = await sdk.load({
+          attachTo: e.attachTo,
+          assets: { rom },
+          options: {
+            romFileName: e.fileName,
+            // Already verified above; no need to hash the same bytes twice.
+            verifyRom: false,
+          },
+          onProgress(current, total) {
+            if (total > 0) {
+              console.log(`[demo] loading ${Math.round((current / total) * 100)}%`)
+            }
+          },
+          onEvent(event) {
+            if (event.type === 'error') {
+              console.error(event.error)
+            } else {
+              console.log('[demo]', event.type)
+            }
+          },
+        })
+
+        instance.start()
+        console.log('[demo] runtime variant:', instance.variant)
+
+        // The first boot rips every sprite out of the ROM into user:// and can
+        // take a minute; it is cached in IndexedDB from then on.
+        return instance
+      })
+  </script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  # Keep in sync with the Makefile; used for the toolchain cache key.
+  GODOT_VERSION: 4.6.3-stable
+
+jobs:
+  sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck + tests
+        run: make test
+      - name: Build SDK (TypeScript + manifest + demo shell)
+        run: make build-sdk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdk-dist
+          path: dist/
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # The editor plus export templates are ~1.4 GB; downloading them once per
+      # Godot version is the difference between a 3-minute job and a 15-minute
+      # one.
+      - name: Cache Godot toolchain
+        uses: actions/cache@v4
+        with:
+          path: .tmp/toolchain
+          key: godot-${{ env.GODOT_VERSION }}-${{ runner.os }}
+
+      # Godot's import step converts ~3700 resources. The cache is keyed on the
+      # pinned upstream revision in the Makefile, so it is only rebuilt when the
+      # game actually moves.
+      - name: Cache imported project
+        uses: actions/cache@v4
+        with:
+          path: .tmp/smbros-src/.godot
+          key: godot-import-${{ env.GODOT_VERSION }}-${{ hashFiles('Makefile', 'scripts/patch-smbros-project.mjs') }}
+
+      - name: Export the game to WebAssembly
+        run: make build-wasm
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wasm-dist
+          path: |
+            dist/smbros/
+            dist/original/
+
+  release:
+    needs: [sdk, wasm]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-dist
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: wasm-dist
+          path: dist
+      # The runtime is GPL-3.0 (see NOTICE.md) and far too large for npm, so
+      # the Release is where hosts point `options.runtimeBaseUrl`.
+      - name: Attach artifacts to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/smbros/smbros.js
+            dist/smbros/smbros.wasm
+            dist/smbros/smbros.threaded.js
+            dist/smbros/smbros.threaded.wasm
+            dist/smbros/smbros.pck
+            dist/smbros/smbros.audio.worklet.js
+            dist/smbros/smbros.audio.position.worklet.js
+            dist/smbros/smbros.threaded.audio.worklet.js
+            dist/smbros/smbros.threaded.audio.position.worklet.js
+            dist/smbros/smbros.sdk.js
+            dist/smbros/smbros.sdk.d.ts
+            dist/smbros/smbros.options.js
+            dist/smbros/smbros.options.d.ts
+            dist/smbros/smbros.manifest.js
+            dist/smbros/smbros.manifest.d.ts
+            dist/smbros/smbros.rom.js
+            dist/smbros/smbros.rom.d.ts
+            dist/smbros/smbros.runtime.js
+            dist/smbros/smbros.runtime.d.ts
+            dist/manifest.json
+            dist/index.html
+            dist/demo.js
+            NOTICE.md
+
+  pages:
+    needs: [sdk, wasm]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-dist
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: wasm-dist
+          path: dist
+      # GitHub Pages cannot send COOP/COEP headers, so the page is not
+      # cross-origin isolated and the SDK picks the single-threaded runtime by
+      # itself. Nothing to inject.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - id: deploy
+        uses: actions/deploy-pages@v4

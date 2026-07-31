@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump type
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  GODOT_VERSION: 4.6.3-stable
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      id-token: write
+    # Must match the Environment configured for npm Trusted Publisher.
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          scope: '@wasm-gaming'
+          registry-url: https://registry.npmjs.org
+
+      - name: Upgrade npm for OIDC trusted publishing
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Godot toolchain
+        uses: actions/cache@v4
+        with:
+          path: .tmp/toolchain
+          key: godot-${{ env.GODOT_VERSION }}-${{ runner.os }}
+
+      - name: Cache imported project
+        uses: actions/cache@v4
+        with:
+          path: .tmp/smbros-src/.godot
+          key: godot-import-${{ env.GODOT_VERSION }}-${{ hashFiles('Makefile', 'scripts/patch-smbros-project.mjs') }}
+
+      - name: Validate
+        run: |
+          make typecheck
+          make test
+
+      - name: Build (web export + SDK + manifest)
+        run: make build
+
+      - name: Configure Git
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+
+      - name: Bump version, commit, and tag
+        id: bump_version
+        run: |
+          NEW_TAG=$(npm version "${{ inputs.bump }}" -m "chore(release): %s")
+          echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: npm publish preflight
+        run: |
+          npm config get registry
+          npm pack --dry-run
+
+      # package.json ships the SDK only. The runtime artifacts are a build of
+      # GPL-3.0 game code and ~90 MB besides, so they ride on the GitHub
+      # Release instead — see NOTICE.md.
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+
+      - name: Push commit and tag
+        run: git push origin HEAD --follow-tags
+
+      - name: Package dist archives
+        run: |
+          cp -r dist smbros-wasm
+          cp NOTICE.md smbros-wasm/
+          tar -czf smbros-wasm.tar.gz smbros-wasm
+          zip -qr smbros-wasm.zip smbros-wasm
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.bump_version.outputs.new_tag }}
+          name: ${{ steps.bump_version.outputs.new_tag }}
+          generate_release_notes: true
+          body: |
+            Runtime artifacts in these archives are a build of
+            [Super Mario Bros. Remastered](https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public)
+            (GPL-3.0). No Nintendo assets are included: the game requires a
+            Super Mario Bros. (NES) ROM supplied by the player. See NOTICE.md.
+          files: |
+            smbros-wasm.tar.gz
+            smbros-wasm.zip

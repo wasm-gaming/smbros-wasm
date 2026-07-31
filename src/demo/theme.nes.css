@@ -1,0 +1,157 @@
+/* Overworld skin for the shared demo template.
+ *
+ * The template renders into shadow DOM and reads --demo-* custom properties,
+ * which inherit across shadow boundaries — so redeclaring the token set here
+ * re-skins the whole launcher without forking a single template file. Rules
+ * after the :root block only touch page chrome this repo owns, plus the
+ * viewport aspect ratio: the template defaults to 5:4 while the game renders
+ * 256x240 square pixels (16:15).
+ *
+ * Palette is the NES Super Mario Bros. overworld: sky $22, ground $17/$27,
+ * Mario red $16, pipe green $1A.
+ */
+
+:root {
+  --demo-bg-a: #5c94fc;
+  --demo-bg-b: #b8d8f8;
+  --demo-bg-gradient: linear-gradient(180deg, var(--demo-bg-a) 0%, var(--demo-bg-b) 100%);
+  --demo-bg-radial-1: rgba(216, 40, 0, 0.1);
+  --demo-bg-radial-2: rgba(0, 168, 0, 0.12);
+
+  --demo-text: #1c1c2c;
+  --demo-muted: #4a5568;
+
+  --demo-accent: #d82800;
+  --demo-accent-rgb: 216, 40, 0;
+  --demo-accent-glow: 0 3px 0 rgba(0, 0, 0, 0.25);
+
+  --demo-accent2: #00a800;
+  --demo-accent2-rgb: 0, 168, 0;
+  --demo-accent2-glow: 0 3px 0 rgba(0, 0, 0, 0.25);
+
+  /* Hard edges everywhere: no blur, no rounding, 3px shadows like a sprite. */
+  --demo-panel-bg: rgba(255, 255, 255, 0.82);
+  --demo-panel-border: #1c1c2c;
+  --demo-panel-shadow: 4px 4px 0 rgba(28, 28, 44, 0.35);
+  --demo-panel-blur: 0px;
+  --demo-panel-radius: 0px;
+
+  --demo-subpanel-bg: rgba(255, 255, 255, 0.7);
+  --demo-subpanel-border: rgba(28, 28, 44, 0.5);
+  --demo-subpanel-shadow: 3px 3px 0 rgba(28, 28, 44, 0.2);
+  --demo-subpanel-blur: 0px;
+  --demo-subpanel-radius: 0px;
+
+  --demo-drop-bg: rgba(255, 255, 255, 0.45);
+  --demo-drop-border: #1c1c2c;
+  --demo-drop-active-bg: rgba(252, 216, 168, 0.75);
+  --demo-drop-active-border: var(--demo-accent);
+  --demo-drop-active-shadow: 4px 4px 0 rgba(216, 40, 0, 0.35);
+
+  --demo-picker-bg: #fcd8a8;
+  --demo-picker-hover-bg: #ffffff;
+  --demo-picker-border: #1c1c2c;
+  --demo-picker-hover-border: var(--demo-accent);
+  --demo-picker-text: var(--demo-text);
+
+  --demo-pill-bg: rgba(216, 40, 0, 0.12);
+  --demo-pill-border: var(--demo-accent);
+  --demo-pill-text: var(--demo-accent);
+  --demo-pill-shadow: none;
+
+  --demo-file-info-bg: rgba(255, 255, 255, 0.85);
+  --demo-file-info-border: #1c1c2c;
+  --demo-file-info-blur: 0px;
+
+  --demo-esc-bg: rgba(28, 28, 44, 0.55);
+  --demo-esc-card-bg: #1c1c2c;
+  --demo-esc-text: #f8f8f8;
+
+  --demo-font-sans: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  --demo-font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+}
+
+/* --- page chrome owned by this repo ------------------------------------- */
+
+.console-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1.1rem;
+  background: #1c1c2c;
+  color: #f8f8f8;
+  font-family: var(--demo-font-sans);
+  letter-spacing: 0.08em;
+  border-bottom: 4px solid var(--demo-accent);
+}
+
+.console-bar .wordmark {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.console-bar .badge {
+  padding: 0.15rem 0.5rem;
+  background: var(--demo-accent);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+/* Reason a ROM was turned away; empty until the launcher rejects one. */
+.console-bar .rom-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: #ffb8a8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.console-bar .runtime-tag {
+  margin-left: auto;
+  font-family: var(--demo-font-mono);
+  font-size: 0.72rem;
+  color: #b8d8f8;
+}
+
+.console-bar .runtime-tag b {
+  color: #fcd8a8;
+}
+
+/* --- runtime viewport ---------------------------------------------------- */
+
+/* 256x240 with square pixels, the ratio the desktop build opens at. */
+.runtime,
+.runtime canvas {
+  aspect-ratio: 16 / 15;
+}
+
+/* Shown in place of the game when a ROM is turned away at launch. */
+.stage-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  margin: 0;
+  padding: 2rem;
+  background: #1c1c2c;
+  color: #ffb8a8;
+  font-family: var(--demo-font-sans);
+  font-size: 1.05rem;
+  line-height: 1.5;
+  text-align: center;
+  text-wrap: balance;
+}
+
+/* Godot owns this canvas; keep the upscale crisp and the focus ring away. */
+.runtime canvas {
+  image-rendering: pixelated;
+  background: #000;
+}
+
+.runtime canvas:focus {
+  outline: none;
+}

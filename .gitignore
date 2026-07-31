@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Cache
+__pycache__/
+
+# Build workspace + output
+.tmp/
+dist/
+*.tsbuildinfo
+
+# ROMs are user-provided and must never be committed. The game rips its
+# graphics and audio from an original Super Mario Bros. (NES) cartridge dump
+# that the player supplies at runtime.
+*.nes
+*.nez
+*.fds
+*.unf
+*.unif
+
+# OS / editor
+.DS_Store
+.vscode/

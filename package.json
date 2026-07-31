@@ -1,0 +1,61 @@
+{
+  "name": "@wasm-gaming/smbros-wasm",
+  "version": "0.1.0",
+  "description": "Super Mario Bros. Remastered (Godot 4) exported to WebAssembly, with a JS SDK conforming to the wasm-gaming engine contract.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wasm-gaming/smbros-wasm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wasm-gaming/smbros-wasm/issues"
+  },
+  "homepage": "https://github.com/wasm-gaming/smbros-wasm#readme",
+  "type": "module",
+  "main": "./dist/smbros/smbros.sdk.js",
+  "types": "./dist/smbros/smbros.sdk.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/smbros/smbros.sdk.d.ts",
+      "import": "./dist/smbros/smbros.sdk.js"
+    },
+    "./options": {
+      "types": "./dist/smbros/smbros.options.d.ts",
+      "import": "./dist/smbros/smbros.options.js"
+    },
+    "./rom": {
+      "types": "./dist/smbros/smbros.rom.d.ts",
+      "import": "./dist/smbros/smbros.rom.js"
+    },
+    "./manifest": "./dist/manifest.json"
+  },
+  "comment:files": "Only the SDK ships on npm. The Godot runtime artifacts (.wasm/.pck, ~50 MB, GPL-3.0) are published as GitHub Release assets and pointed at with `runtimeBaseUrl` / `jsUrl` / `wasmUrl`.",
+  "files": [
+    "dist/smbros/*.js",
+    "dist/smbros/*.d.ts",
+    "dist/smbros/*.map",
+    "dist/manifest.json",
+    "src/smbros.manifest.ts",
+    "src/smbros.options.ts",
+    "src/smbros.rom.ts",
+    "src/smbros.runtime.ts",
+    "src/smbros.sdk.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "comment:scripts": "Build logic lives in the Makefile, not here (make build / build-sdk / build-wasm / preview).",
+  "scripts": {},
+  "peerDependencies": {
+    "@wasm-gaming/engine-specs": ">=0.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@wasm-gaming/engine-specs": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@wasm-gaming/engine-specs": "^0.2.6",
+    "typescript": "^5.5.0"
+  },
+  "engineContract": "https://github.com/wasm-gaming/engine-specs",
+  "license": "MIT"
+}
