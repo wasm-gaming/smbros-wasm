@@ -108,9 +108,11 @@ setup_toolchain() {
 # ----------------------------------------------------------------- upstream --
 
 sync_upstream() {
+  mkdir -p "$SRC_DIR"
   if [[ ! -d "${SRC_DIR}/.git" ]]; then
-    log "cloning ${UPSTREAM_REPO}"
-    git clone --filter=blob:none "$UPSTREAM_REPO" "$SRC_DIR"
+    log "initializing upstream repo at ${SRC_DIR}"
+    git -C "$SRC_DIR" init --quiet
+    git -C "$SRC_DIR" remote add origin "$UPSTREAM_REPO" 2>/dev/null || git -C "$SRC_DIR" remote set-url origin "$UPSTREAM_REPO"
   fi
 
   log "checking out ${UPSTREAM_REF}"
