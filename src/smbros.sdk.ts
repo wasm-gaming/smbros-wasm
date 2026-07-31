@@ -111,25 +111,106 @@ export async function load(config: SmbrosLoadConfig): Promise<SmbrosInstance> {
     canvas.id = 'smbros-canvas';
   }
 
-  // The drawing buffer is the SDK's to set; the box it is drawn into belongs to
-  // the host's CSS. With canvasResizePolicy 0 Godot adopts whatever is here as
-  // its window size, so the game renders at its native resolution and the
-  // browser scales the result — which is also why pointer input still lands in
-  // the right place (Godot divides by the canvas' bounding rect).
+  const fit = opts.fit;
+  // Godot's policy follows from the fit, unless a host names one explicitly.
+  const canvasResizePolicy = requested.canvasResizePolicy ?? (fit === 'window' ? 2 : 0);
+
+  let restoreContainerPosition: (() => void) | null = null;
+
+  if (ownsCanvas) {
+    canvas.style.display = 'block';
+
+    if (fit === 'container' && attachTo) {
+      // Absolute inside the container, so the canvas takes its size *from* the
+      // box and never contributes back to it. That is what keeps the buffer
+      // sync below from feeding itself, and what stops an unsized container
+      // from collapsing around a canvas that is trying to fill it.
+      if (getComputedStyle(attachTo).position === 'static') {
+        const previous = attachTo.style.position;
+        attachTo.style.position = 'relative';
+        restoreContainerPosition = () => {
+          attachTo.style.position = previous;
+        };
+      }
+      canvas.style.position = 'absolute';
+      canvas.style.inset = '0';
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+    } else if (fit === 'native') {
+      // No CSS size: an inline one would beat the host stylesheet, and the
+      // 256x240 drawing buffer already gives the element an intrinsic size.
+      canvas.style.maxWidth = '100%';
+      canvas.style.height = 'auto';
+    }
+
+    attachTo?.appendChild(canvas);
+  }
+
+  if (opts.pixelated) {
+    canvas.style.imageRendering = 'pixelated';
+  }
+
+  // The drawing buffer is Godot's window. Under policy 0 it adopts whatever is
+  // here (and re-adopts it whenever it changes), so matching the buffer to the
+  // displayed box is what gives the game a window of the right shape — which
+  // is what its own aspect-ratio (keep/expand) and integer-scaling settings
+  // act on. Pin it to the native resolution instead and those settings have
+  // nothing to work with, because the window is already exactly 256x240.
   canvas.width = manifest.video.baseWidth;
   canvas.height = manifest.video.baseHeight;
 
-  if (ownsCanvas) {
-    // Deliberately no width/height: an inline size would beat the host's
-    // stylesheet, and the 256x240 intrinsic size above already keeps the
-    // canvas from collapsing in an auto-sized container.
-    canvas.style.display = 'block';
-    canvas.style.maxWidth = '100%';
-    canvas.style.height = 'auto';
-    attachTo?.appendChild(canvas);
-  }
-  if (opts.pixelated) {
-    canvas.style.imageRendering = 'pixelated';
+  let sizeObserver: ResizeObserver | null = null;
+  let syncBuffer: (() => void) | null = null;
+
+  if (fit === 'container') {
+    let corrections = 0;
+    let windowStart = 0;
+    let warnedRunaway = false;
+
+    syncBuffer = (): void => {
+      const rect = canvas.getBoundingClientRect();
+      const ratio = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+      const width = Math.max(1, Math.round(rect.width * ratio));
+      const height = Math.max(1, Math.round(rect.height * ratio));
+      if (width === canvas.width && height === canvas.height) return;
+
+      // A canvas whose box is derived from its own buffer would oscillate here.
+      // Bound it rather than let the page thrash.
+      const now = Date.now();
+      if (now - windowStart > 1000) {
+        windowStart = now;
+        corrections = 0;
+      }
+      if (++corrections > 8) {
+        if (!warnedRunaway) {
+          warnedRunaway = true;
+          console.warn(
+            'smbros: the canvas box keeps changing with its drawing buffer — give the container a size in CSS, or pass options.fit = "native".',
+          );
+        }
+        return;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+    };
+
+    syncBuffer();
+    if (canvas.width <= 1 || canvas.height <= 1) {
+      console.warn(
+        'smbros: the render target has no size yet; rendering at 256×240 until it does. Give the container a width and height in CSS.',
+      );
+      canvas.width = manifest.video.baseWidth;
+      canvas.height = manifest.video.baseHeight;
+    }
+
+    if (typeof ResizeObserver !== 'undefined') {
+      sizeObserver = new ResizeObserver(() => syncBuffer?.());
+      sizeObserver.observe(canvas);
+    }
+    // ResizeObserver does not fire when only the device pixel ratio changes
+    // (zooming, or dragging the window to a different display).
+    window.addEventListener('resize', syncBuffer);
   }
   // Godot's renderer keeps drawing into a canvas that has been detached from
   // the document, so a stale context menu on right-click is the one bit of
@@ -192,7 +273,7 @@ export async function load(config: SmbrosLoadConfig): Promise<SmbrosInstance> {
     executable: base,
     mainPack: PACK_FS_PATH,
     locale: opts.locale || null,
-    canvasResizePolicy: opts.canvasResizePolicy,
+    canvasResizePolicy,
     focusCanvas: opts.focusCanvas,
     experimentalVK: opts.experimentalVirtualKeyboard,
     persistentDrops: opts.persistentDrops,
@@ -315,6 +396,10 @@ export async function load(config: SmbrosLoadConfig): Promise<SmbrosInstance> {
     destroy(): void {
       destroyed = true;
       canvas.removeEventListener('contextmenu', swallowContextMenu);
+      sizeObserver?.disconnect();
+      if (syncBuffer) {
+        window.removeEventListener('resize', syncBuffer);
+      }
       try {
         engine.requestQuit();
       } catch {
@@ -323,6 +408,7 @@ export async function load(config: SmbrosLoadConfig): Promise<SmbrosInstance> {
       if (ownsCanvas) {
         canvas.remove();
       }
+      restoreContainerPosition?.();
     },
 
     variant,

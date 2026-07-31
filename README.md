@@ -75,33 +75,42 @@ one: `variant`, `locale`, `canvasResizePolicy`, `focusCanvas`, `pixelated`,
 packs and language have in-game menus, which is where a player changes them —
 this package deliberately does not put a second settings overlay on top.
 
-### Who sizes the canvas
+### Sizing: `options.fit`
 
-The SDK sets the **drawing buffer** to the game's native 256×240 and never
-writes a CSS size, so the **box** belongs to the host stylesheet:
+A canvas has two sizes — the **box** it occupies on the page and the **drawing
+buffer** it renders into — and for a Godot export the drawing buffer *is* the
+game's window. `fit` decides how the SDK reconciles them.
+
+**`'container'` (default)** — the box comes from the host's CSS, and the SDK
+keeps the drawing buffer matched to it (times the device pixel ratio, via a
+`ResizeObserver`). Godot therefore gets a window the same shape as the element
+it was mounted in, and the game's own video settings behave as they do on the
+desktop build: **aspect ratio** (`keep` letterboxes, `expand` widens the view)
+and **integer/fractional scaling** both act on the difference between 256×240
+and the window. Give the container a size:
 
 ```css
-#game-root canvas { width: min(100vw, calc(100vh * 16 / 15)); height: auto; }
+#game-root { width: 100vw; height: 100vh; }
 ```
 
-That split is what `canvasResizePolicy: 0` (the default) buys. Godot's other
-policies write an inline `style.width`/`height` on every resize, and the
-adaptive one (`2`) additionally sets `position: absolute; top: 0; left: 0` to
-fill the browser window — correct for a page that is nothing but the game (the
-stock shell at `dist/original/index.html` uses it), but inside a host container
-it takes the canvas out of flow, collapses the container to 0×0, and any
-`overflow: hidden` on that container then clips the game away entirely. The
-audio keeps playing, which makes it look like a rendering bug rather than a
-layout one.
+An unsized container renders nothing — the SDK warns when it sees one.
 
-Rendering at 256×240 and scaling with CSS is also the right presentation for
-pixel art: `image-rendering: pixelated` (the `pixelated` option, on by default)
-keeps the upscale crisp, and pointer coordinates still land correctly because
-Godot maps them through the canvas' bounding rect.
+**`'native'`** — the buffer is pinned at 256×240 and the SDK writes no CSS
+size, so host CSS scales a fixed-resolution picture (`image-rendering:
+pixelated`, on by default, keeps that upscale crisp). Simple and cheap, but the
+game's window is then already exactly 256:240, so its aspect-ratio and scaling
+settings have nothing left to do.
 
-Because Godot never resizes the buffer under policy 0, the game's own in-game
-window-size setting has no effect on the web — the host's CSS decides how large
-the picture is.
+**`'window'`** — hands sizing to Godot's own adaptive policy, which fills the
+browser window and sets `position: absolute; top: 0; left: 0` on the canvas.
+Right for a page that is nothing but the game (the stock shell at
+`dist/original/index.html` works this way), wrong inside a host container: it
+takes the canvas out of flow, the container collapses to 0×0, and an
+`overflow: hidden` there clips the game away entirely while the audio keeps
+playing.
+
+Pointer input survives all three — Godot maps coordinates through the canvas'
+bounding rect, so a CSS-scaled canvas still clicks in the right place.
 
 ### Contract notes
 

@@ -47,6 +47,19 @@ const LANGUAGES: Array<{ value: string; label: string }> = [
 
 export const SMBROS_ENGINE_OPTIONS: SmbrosOptionSpec[] = [
   {
+    key: 'fit',
+    label: 'Canvas fit',
+    description:
+      "How the picture is sized. 'container' renders at the size of the element the game is mounted in, which is what makes the game's own aspect-ratio and scaling settings behave the way they do on the desktop build. 'native' pins the render to 256×240 and lets host CSS scale it. 'window' hands sizing to Godot, which fills the browser window and positions the canvas absolutely — only correct on a page that is nothing but the game.",
+    type: 'enum',
+    default: 'container',
+    values: [
+      { value: 'container', label: 'Fill the container' },
+      { value: 'native', label: 'Native 256×240' },
+      { value: 'window', label: 'Fill the browser window' },
+    ],
+  },
+  {
     key: 'variant',
     label: 'Runtime variant',
     description:
@@ -115,7 +128,11 @@ export const SMBROS_ENGINE_OPTIONS: SmbrosOptionSpec[] = [
   },
 ];
 
+/** How the SDK reconciles the render size with the page. */
+export type SmbrosFit = 'container' | 'native' | 'window';
+
 export interface SmbrosOptions {
+  fit?: SmbrosFit;
   variant?: 'auto' | 'threads' | 'nothreads';
   locale?: string;
   pixelated?: boolean;
@@ -139,6 +156,7 @@ export interface SmbrosOptions {
 export const DEFAULT_SMBROS_OPTIONS: Required<
   Pick<
     SmbrosOptions,
+    | 'fit'
     | 'variant'
     | 'locale'
     | 'pixelated'
@@ -151,6 +169,7 @@ export const DEFAULT_SMBROS_OPTIONS: Required<
     | 'romFileName'
   >
 > = {
+  fit: 'container',
   variant: 'auto',
   locale: '',
   pixelated: true,
@@ -191,10 +210,9 @@ export const SMBROS_OPTIONS_SCHEMA: JSONSchema = {
     canvasResizePolicy: {
       type: 'integer',
       enum: [0, 1, 2],
-      default: 0,
       title: 'Canvas resize policy',
       description:
-        'Who sizes the canvas. 0 (default) leaves the box to the host stylesheet and renders at 256×240. 1 lets Godot write the game window size as an inline CSS size. 2 makes Godot position the canvas absolutely and fill the browser window — only correct when the page is nothing but the game.',
+        "Godot's own policy, normally derived from `fit` (0 for container/native, 2 for window) and only worth setting to override that. 0: Godot adopts the canvas' drawing buffer as its window size. 1: Godot writes the game window size onto the canvas as an inline CSS size. 2: Godot positions the canvas absolutely and fills the browser window.",
     },
     runtimeBaseUrl: {
       type: 'string',

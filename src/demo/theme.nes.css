@@ -131,25 +131,41 @@
 
 /* --- runtime viewport ---------------------------------------------------- */
 
-/* 256x240 with square pixels, the ratio the desktop build opens at. The
- * template's own rule assumes 5:4 — including in the width formula that
- * decides how large the picture is — so both have to be restated here. The SDK
- * renders at 256x240 and sets no inline size, which is what lets this win. */
-.runtime,
-.runtime canvas {
-  aspect-ratio: 16 / 15;
+/* Once the game is up the page *is* the game: the header would only take
+ * viewport height away from the picture, and the game letterboxes itself to
+ * whatever shape the canvas has. It comes back if the launch was rejected and
+ * the stage is showing a message instead. */
+body:has(main.running) {
+  --console-bar-height: 0px;
 }
 
-/* The template sizes the picture off the full viewport; here it has to leave
- * room for the header, or the page scrolls by exactly the bar's height. */
+body:has(main.running) .console-bar {
+  display: none;
+}
+
+body:has(main.running .stage-message) .console-bar {
+  display: flex;
+}
+
 main {
   min-height: calc(100vh - var(--console-bar-height));
 }
 
-.runtime canvas {
-  width: min(100vw, calc((100vh - var(--console-bar-height)) * 16 / 15));
-  height: auto;
-  max-height: calc(100vh - var(--console-bar-height));
+/* The SDK sizes its drawing buffer from this box, so this is what decides both
+ * how large the game is drawn and what aspect its window has — which is what
+ * the in-game "aspect ratio" (keep/expand) and integer-scaling settings act
+ * on. The template's own 5:4 sizing rules are replaced wholesale. */
+main.running .runtime {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  aspect-ratio: auto;
+  max-width: none;
+}
+
+main.running .runtime canvas {
+  aspect-ratio: auto;
+  max-height: none;
 }
 
 /* Shown in place of the game when a ROM is turned away at launch. */
