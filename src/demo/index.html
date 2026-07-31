@@ -30,6 +30,19 @@
   <script type="module" src="./demo.js"></script>
 
   <script type="module">
+    // Toggle fullscreen on Cmd+Enter (Mac) / Ctrl+Enter (other).
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        const target = document.querySelector('main') || document.documentElement
+        if (!document.fullscreenElement) {
+          target.requestFullscreen?.().catch(() => {})
+        } else {
+          document.exitFullscreen?.().catch(() => {})
+        }
+      }
+    })
+
     import demo from './demo/demo.js'
 
     const { sdk, manifest, checkRom } = window.SMBROS
