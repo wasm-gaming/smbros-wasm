@@ -77,10 +77,10 @@ setup_toolchain() {
     [[ -d "${TOOLCHAIN_DIR}/Godot.app" ]] || unzip -q -o "$editor_zip" -d "$TOOLCHAIN_DIR"
     GODOT_BIN="${TOOLCHAIN_DIR}/Godot.app/Contents/MacOS/Godot"
   else
-    GODOT_BIN="$(find "$TOOLCHAIN_DIR" -maxdepth 1 -name 'Godot_v*_linux.*' -type f | head -1)"
+    GODOT_BIN="$(find "$TOOLCHAIN_DIR" -maxdepth 1 -name 'Godot_v*_linux*' ! -name '*.zip' ! -name '*.part' -type f | head -1)"
     if [[ -z "$GODOT_BIN" ]]; then
       unzip -q -o "$editor_zip" -d "$TOOLCHAIN_DIR"
-      GODOT_BIN="$(find "$TOOLCHAIN_DIR" -maxdepth 1 -name 'Godot_v*_linux.*' -type f | head -1)"
+      GODOT_BIN="$(find "$TOOLCHAIN_DIR" -maxdepth 1 -name 'Godot_v*_linux*' ! -name '*.zip' ! -name '*.part' -type f | head -1)"
     fi
   fi
   [[ -x "$GODOT_BIN" ]] || chmod +x "$GODOT_BIN"
