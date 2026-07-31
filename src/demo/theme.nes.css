@@ -69,6 +69,11 @@
 
   --demo-font-sans: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
   --demo-font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+
+  /* The header this page adds above the template. Fixed, so the viewport
+   * arithmetic below can subtract it and the game still fits without the page
+   * scrolling. */
+  --console-bar-height: 3.25rem;
 }
 
 /* --- page chrome owned by this repo ------------------------------------- */
@@ -77,6 +82,8 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  height: var(--console-bar-height);
+  box-sizing: border-box;
   padding: 0.6rem 1.1rem;
   background: #1c1c2c;
   color: #f8f8f8;
@@ -88,6 +95,7 @@
 .console-bar .wordmark {
   font-weight: 700;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .console-bar .badge {
@@ -123,10 +131,25 @@
 
 /* --- runtime viewport ---------------------------------------------------- */
 
-/* 256x240 with square pixels, the ratio the desktop build opens at. */
+/* 256x240 with square pixels, the ratio the desktop build opens at. The
+ * template's own rule assumes 5:4 — including in the width formula that
+ * decides how large the picture is — so both have to be restated here. The SDK
+ * renders at 256x240 and sets no inline size, which is what lets this win. */
 .runtime,
 .runtime canvas {
   aspect-ratio: 16 / 15;
+}
+
+/* The template sizes the picture off the full viewport; here it has to leave
+ * room for the header, or the page scrolls by exactly the bar's height. */
+main {
+  min-height: calc(100vh - var(--console-bar-height));
+}
+
+.runtime canvas {
+  width: min(100vw, calc((100vh - var(--console-bar-height)) * 16 / 15));
+  height: auto;
+  max-height: calc(100vh - var(--console-bar-height));
 }
 
 /* Shown in place of the game when a ROM is turned away at launch. */

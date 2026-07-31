@@ -75,6 +75,34 @@ one: `variant`, `locale`, `canvasResizePolicy`, `focusCanvas`, `pixelated`,
 packs and language have in-game menus, which is where a player changes them —
 this package deliberately does not put a second settings overlay on top.
 
+### Who sizes the canvas
+
+The SDK sets the **drawing buffer** to the game's native 256×240 and never
+writes a CSS size, so the **box** belongs to the host stylesheet:
+
+```css
+#game-root canvas { width: min(100vw, calc(100vh * 16 / 15)); height: auto; }
+```
+
+That split is what `canvasResizePolicy: 0` (the default) buys. Godot's other
+policies write an inline `style.width`/`height` on every resize, and the
+adaptive one (`2`) additionally sets `position: absolute; top: 0; left: 0` to
+fill the browser window — correct for a page that is nothing but the game (the
+stock shell at `dist/original/index.html` uses it), but inside a host container
+it takes the canvas out of flow, collapses the container to 0×0, and any
+`overflow: hidden` on that container then clips the game away entirely. The
+audio keeps playing, which makes it look like a rendering bug rather than a
+layout one.
+
+Rendering at 256×240 and scaling with CSS is also the right presentation for
+pixel art: `image-rendering: pixelated` (the `pixelated` option, on by default)
+keeps the upscale crisp, and pointer coordinates still land correctly because
+Godot maps them through the canvas' bounding rect.
+
+Because Godot never resizes the buffer under policy 0, the game's own in-game
+window-size setting has no effect on the web — the host's CSS decides how large
+the picture is.
+
 ### Contract notes
 
 Where the contract and a Godot export do not line up exactly:

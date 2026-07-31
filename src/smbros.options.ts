@@ -124,7 +124,7 @@ export interface SmbrosOptions {
   experimentalVirtualKeyboard?: boolean;
   verifyRom?: boolean;
   autoStart?: boolean;
-  /** 0: fixed, 1: project resolution, 2: adaptive (follow the element size). */
+  /** 0: host owns the box (default), 1: Godot writes the game's window size, 2: fill the browser window. */
   canvasResizePolicy?: 0 | 1 | 2;
   /** Where the exported runtime files live. Defaults to this package's dist/smbros/. */
   runtimeBaseUrl?: string;
@@ -159,7 +159,7 @@ export const DEFAULT_SMBROS_OPTIONS: Required<
   experimentalVirtualKeyboard: false,
   verifyRom: true,
   autoStart: true,
-  canvasResizePolicy: 2,
+  canvasResizePolicy: 0,
   romFileName: 'baserom.nes',
 };
 
@@ -191,10 +191,10 @@ export const SMBROS_OPTIONS_SCHEMA: JSONSchema = {
     canvasResizePolicy: {
       type: 'integer',
       enum: [0, 1, 2],
-      default: 2,
+      default: 0,
       title: 'Canvas resize policy',
       description:
-        "How Godot sizes its drawing buffer: 0 leaves the canvas alone, 1 pins it to the project's 256×240, 2 follows the element.",
+        'Who sizes the canvas. 0 (default) leaves the box to the host stylesheet and renders at 256×240. 1 lets Godot write the game window size as an inline CSS size. 2 makes Godot position the canvas absolutely and fill the browser window — only correct when the page is nothing but the game.',
     },
     runtimeBaseUrl: {
       type: 'string',

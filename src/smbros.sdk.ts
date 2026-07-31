@@ -110,10 +110,22 @@ export async function load(config: SmbrosLoadConfig): Promise<SmbrosInstance> {
   if (!canvas.id) {
     canvas.id = 'smbros-canvas';
   }
+
+  // The drawing buffer is the SDK's to set; the box it is drawn into belongs to
+  // the host's CSS. With canvasResizePolicy 0 Godot adopts whatever is here as
+  // its window size, so the game renders at its native resolution and the
+  // browser scales the result — which is also why pointer input still lands in
+  // the right place (Godot divides by the canvas' bounding rect).
+  canvas.width = manifest.video.baseWidth;
+  canvas.height = manifest.video.baseHeight;
+
   if (ownsCanvas) {
+    // Deliberately no width/height: an inline size would beat the host's
+    // stylesheet, and the 256x240 intrinsic size above already keeps the
+    // canvas from collapsing in an auto-sized container.
     canvas.style.display = 'block';
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
+    canvas.style.maxWidth = '100%';
+    canvas.style.height = 'auto';
     attachTo?.appendChild(canvas);
   }
   if (opts.pixelated) {
